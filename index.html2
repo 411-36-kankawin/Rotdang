@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="ต้นแบบแอปรถแดงเชียงใหม่: จุดรอ ราคาเงินสด คนขับ และรถแดงใกล้คุณ (ข้อมูลจำลอง)">
+<title>รถแดงเชียงใหม่ – แผนที่ฟรี (OpenStreetMap)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--land:#F3F1EC;--park:#CFE6C9;--water:#A9D6F2;--road:#FFFFFF;--main:#FCE3A0;--mainline:#EBC15B;--ink:#111816;--sub:#3E4A46;--sheet:#FFFFFF;--line:#E1E5E3;--red:#D42E2B;--redsoft:#FBE6E4;--chip:#F1F4F3;--ok:#1F7A4D;--oksoft:#DDF1E6;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--land:#242B2A;--park:#2A4030;--water:#1F4256;--road:#3A4543;--main:#5A4E2A;--mainline:#7A6A36;--ink:#EDF1EF;--sub:#C3CEC9;--sheet:#2B3331;--line:#3B4643;--red:#F0554F;--redsoft:#3A2321;--chip:#323B39;--ok:#5CCB92;--oksoft:#1D3A2C;color-scheme:dark}}
+:root[data-theme="dark"]{--land:#242B2A;--park:#2A4030;--water:#1F4256;--road:#3A4543;--main:#5A4E2A;--mainline:#7A6A36;--ink:#EDF1EF;--sub:#C3CEC9;--sheet:#2B3331;--line:#3B4643;--red:#F0554F;--redsoft:#3A2321;--chip:#323B39;--ok:#5CCB92;--oksoft:#1D3A2C;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;background:var(--land);color:var(--ink);font-family:"Noto Sans Thai","Sarabun","Prompt",system-ui,sans-serif;font-size:16px;line-height:1.5;overflow:hidden}
+#app{flex:1 1 auto;min-height:0;position:relative}
+.scroll{position:absolute;inset:0;overflow:auto;padding:16px 16px 28px;background:var(--land)}
+.scroll>div{max-width:560px;margin:0 auto}
+nav{flex:0 0 auto;display:flex;background:var(--sheet);border-top:1px solid var(--line)}
+nav button{flex:1;min-height:54px;border:0;background:transparent;color:var(--sub);font:inherit;font-size:13px;font-weight:500;cursor:pointer;border-top:3px solid transparent}
+nav button.on{color:var(--red);border-top-color:var(--red);font-weight:700}
+button:focus-visible,a:focus-visible,.pin:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+h1{font-size:21px;margin:4px 0 6px;line-height:1.3}
+h2{font-size:16px;margin:0 0 6px}
+.sub{color:var(--sub);font-size:14px;margin:0 0 12px}
+svg{display:block;width:100%;height:100%}
+.pin{cursor:pointer}
+.pin text{font-family:inherit;font-size:16px;font-weight:500;fill:var(--ink);paint-order:stroke;stroke:var(--land);stroke-width:4px;stroke-linejoin:round}
+.top{position:absolute;left:10px;right:10px;top:10px;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.pill{pointer-events:auto;background:var(--sheet);border-radius:26px;padding:10px 16px;box-shadow:0 1px 6px rgba(0,0,0,.25);display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+.pill b{color:var(--red)}
+.cash{background:var(--oksoft);color:var(--ok);border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+.chips{pointer-events:auto;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.chips button,.fl button{flex:0 0 auto;border:0;background:var(--sheet);color:var(--ink);font:inherit;font-size:13px;border-radius:18px;padding:6px 14px;min-height:36px;box-shadow:0 1px 4px rgba(0,0,0,.2);cursor:pointer}
+.chips button.on,.fl button.on{background:var(--red);color:#fff}
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:56%;overflow:auto;background:var(--sheet);border-radius:20px 20px 0 0;box-shadow:0 -2px 10px rgba(0,0,0,.2);padding:14px 16px 20px}
+.sheet .grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:-6px auto 10px}
+.hd{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.x{flex:0 0 40px;height:40px;border:0;border-radius:50%;background:var(--chip);color:var(--ink);font-size:18px;cursor:pointer}
+.box{border-radius:14px;padding:10px 12px;margin:10px 0;background:var(--chip);font-size:14px}
+.box.red{background:var(--redsoft)}
+.box b{display:block;font-size:13px;color:var(--sub);font-weight:500}
+.rt{display:flex;width:100%;justify-content:space-between;align-items:center;gap:10px;border:0;border-top:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;padding:10px 0;min-height:48px;text-align:left;cursor:pointer}
+.rt small{display:block;color:var(--sub);font-size:12px}
+.rt .p{font-weight:700;font-size:18px;white-space:nowrap;text-align:right}
+.rt .p small{font-weight:400}
+.dc{display:inline-block;background:var(--chip);border-radius:14px;padding:2px 12px;margin:0 6px 6px 0;font-size:13px}
+ol.st{margin:8px 0;padding-left:0;list-style:none;counter-reset:s}
+ol.st li{counter-increment:s;position:relative;padding:8px 0 8px 40px;border-top:1px solid var(--line)}
+ol.st li:before{content:counter(s);position:absolute;left:0;top:9px;width:28px;height:28px;border-radius:50%;background:var(--red);color:#fff;font-weight:700;display:grid;place-items:center;font-size:14px}
+.card{background:var(--sheet);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.dr{display:flex;gap:12px}
+.av{flex:0 0 46px;height:46px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px}
+.dr .m{flex:1;min-width:0}
+.nm{font-weight:700;font-size:16px}
+.meta{color:var(--sub);font-size:13px}
+.dc.hit{background:var(--redsoft);color:var(--red);font-weight:700}
+.fl{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.fl button{box-shadow:none;border:1px solid var(--line)}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;border:0;border-radius:12px;background:var(--red);color:#fff;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;margin-top:8px}
+.btn.o{background:transparent;color:var(--ink);border:1.5px solid var(--line);font-weight:500}
+.note{background:var(--oksoft);color:var(--ok);border-radius:12px;padding:8px 12px;font-size:14px;margin:0 0 12px}
+.foot{color:var(--sub);font-size:12px;margin-top:10px}
+#show{position:fixed;inset:0;background:var(--red);color:#fff;display:none;flex-direction:column;justify-content:center;text-align:center;padding:24px;z-index:9}
+#show.on{display:flex}
+#show h1{font-size:34px;line-height:1.35;margin:0 0 8px}
+#show .pr{font-size:64px;font-weight:700;line-height:1.1}
+#show p{font-size:20px;margin:8px 0 26px}
+#show button{align-self:center;min-height:48px;padding:0 28px;border-radius:24px;border:2px solid #fff;background:transparent;color:#fff;font:inherit;font-size:16px;cursor:pointer}
+#mc{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.zm{position:absolute;right:10px;top:112px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.zm button{width:44px;height:44px;border:0;border-radius:50%;background:var(--sheet);color:var(--ink);font-size:22px;box-shadow:0 1px 5px rgba(0,0,0,.3);cursor:pointer}
+.sr{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding:6px 0}
+.sr small{display:block;color:var(--sub);font-size:12px}
+.pb{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;line-height:1.3}
+.big{font-size:28px;font-weight:700}
+#mapview{position:absolute;inset:0}
+#gm{position:absolute;inset:0}
+.mlabel{color:var(--ink)!important;font-family:"Noto Sans Thai","Sarabun",sans-serif!important;text-shadow:-1px -1px 0 var(--land),1px -1px 0 var(--land),-1px 1px 0 var(--land),1px 1px 0 var(--land)}
+#nokey{display:none;position:absolute;inset:0;background:var(--land);align-items:center;justify-content:center;padding:24px;text-align:center;z-index:1;flex-direction:column;gap:8px}
+#nokey code{background:var(--chip);padding:2px 8px;border-radius:8px}
+#gm{z-index:0}.top{z-index:3}.sheet{z-index:3}#nokey{z-index:5}
+.leaflet-container{font-family:inherit;background:var(--land)}
+.leaflet-top.leaflet-right{top:112px}
+.pin0{background:none;border:0}
+.pn{position:relative}
+.pn .mlabel{position:absolute;top:34px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12px;font-weight:500}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .base-osm .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}}
+.sheet{height:46%;max-height:none;padding:0;display:flex;flex-direction:column;overflow:hidden;transition:height .18s ease}
+.sheet.drag{transition:none}
+.gh{flex:0 0 30px;display:grid;place-items:center;cursor:grab;touch-action:none}
+.gh i{width:46px;height:5px;border-radius:3px;background:var(--sub);opacity:.5}
+.sb{flex:1;min-height:0;overflow-y:auto;padding:0 16px 24px;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.sb .grab{display:none}
+#tilemsg{display:none;position:absolute;left:10px;right:10px;top:108px;z-index:4;background:#FFF1D0;color:#6B4500;border-radius:12px;padding:10px 12px;font-size:13px;box-shadow:0 1px 6px rgba(0,0,0,.25)}
+.sub{font-size:15px}.box{font-size:15px}.foot{font-size:13px}.rt small,.sr small{font-size:13px;color:var(--sub)}
+.pn .mlabel{font-size:13px!important;font-weight:700!important;text-shadow:0 0 3px var(--sheet),0 0 3px var(--sheet),0 0 3px var(--sheet),0 0 3px var(--sheet)!important}
+.tk{position:relative;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))}.tk svg{display:block}
+.tkl{position:absolute;top:29px;left:50%;transform:translateX(-50%);white-space:nowrap;font:700 12px "Noto Sans Thai","Sarabun",sans-serif;background:#fff;color:#111;border-radius:8px;padding:1px 7px;border:1px solid #bbb}
+.tk.best .tkl{background:#D42E2B;color:#fff;border-color:#fff}.tk.busy{opacity:.55}
+.tr{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.tr .n{flex:0 0 28px;height:28px;border-radius:50%;background:var(--chip);display:grid;place-items:center;font-weight:700}
+.tr.first .n{background:var(--red);color:#fff}.tr small{color:var(--sub);font-size:13px}
+.mini{min-height:40px;padding:0 14px;border-radius:10px;border:0;background:var(--red);color:#fff;font:inherit;font-weight:700;cursor:pointer;white-space:nowrap}
+.bn{display:block;font-size:20px;font-weight:700;color:var(--ink)}
+.chips button.near{box-shadow:0 0 0 2px var(--red),0 1px 4px rgba(0,0,0,.2);font-weight:700}
+body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-kerning:normal;letter-spacing:.01em;line-height:1.6}
+button,input,select{font-family:inherit;-webkit-font-smoothing:antialiased}
+h1{font-size:23px;font-weight:700;line-height:1.35}h2{font-size:18px;font-weight:700;line-height:1.4}
+.sub{font-size:15.5px;line-height:1.6}.foot{font-size:13.5px;line-height:1.6}.meta{font-size:14.5px}
+.box{font-size:15.5px;line-height:1.6}.box b{font-size:13.5px;font-weight:600;letter-spacing:.02em}
+.rt small,.sr small,.tr small{font-size:13.5px;font-weight:400}
+.chips button,.fl button,.dc{font-size:14px;font-weight:500}
+.btn,.mini{font-weight:600;font-size:15.5px}
+.pill{font-size:14.5px;font-weight:500}.cash{font-size:12.5px;font-weight:600}
+.pn .mlabel{font-size:13.5px!important;font-weight:600!important;letter-spacing:.01em!important}
+.tkl{font-size:12.5px;font-weight:600;letter-spacing:.01em}
+.nm{font-weight:600}.tr b,.dr b{font-weight:600}.big{font-weight:700}
+.leaflet-control-layers{font-family:inherit;font-size:14px;border-radius:12px}
+.leaflet-control-layers-toggle{width:40px;height:40px}
+.leaflet-control-zoom a{width:40px;height:40px;line-height:40px;font-size:20px}
+
+.base-osm .leaflet-tile-pane{filter:contrast(1.18) saturate(1.08)}
+.bm{position:absolute;left:10px;top:108px;z-index:3;display:flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:calc(100% - 70px)}
+.bm button{min-height:40px;padding:0 16px;border:0;border-radius:20px;background:var(--sheet);color:var(--ink);font:inherit;font-weight:600;font-size:14px;box-shadow:0 1px 5px rgba(0,0,0,.3);cursor:pointer}
+.bm button.on{background:var(--ink);color:var(--sheet)}
+.bm label{background:var(--sheet);color:var(--ink);border-radius:20px;padding:7px 12px;font-size:14px;font-weight:500;box-shadow:0 1px 5px rgba(0,0,0,.3);display:none;align-items:center;gap:6px;min-height:40px}
+.bm label.on{display:flex}.bm input{width:18px;height:18px;accent-color:#D42E2B}
+html{scroll-behavior:smooth}.sb{scroll-behavior:smooth}
+button{transition:transform .12s ease,background-color .2s ease,box-shadow .2s ease,opacity .2s ease}
+button:active{transform:scale(.97)}
+@keyframes rise{from{opacity:.0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.sb.in{animation:rise .26s ease both}
+@keyframes pls{0%,100%{transform:scale(.9);opacity:.95}50%{transform:scale(1.1);opacity:.55}}
+.pin0.leaflet-marker-icon{will-change:transform}
+.tk{position:relative;width:56px;height:34px;filter:none}
+.tk .halo{position:absolute;left:50%;top:50%;width:74px;height:74px;margin:-37px 0 0 -37px;border-radius:50%;border:2px dashed rgba(212,46,43,.85);background:rgba(212,46,43,.12);animation:pls 2.4s ease-in-out infinite}
+.tk .tkv{position:absolute;inset:0;transition:transform .35s ease;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.tk .tkv svg{display:block;width:56px;height:34px}
+.pin0.flip .tkv{transform:scaleX(-1)}
+.pin0.busy .tkv{opacity:.6}
+.tk .tkl{position:absolute;top:40px;left:50%;transform:translateX(-50%);white-space:nowrap;font:600 13.5px "Noto Sans Thai","Sarabun",sans-serif;letter-spacing:.01em;background:none;border:0;padding:0 2px;color:#111816;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
+.pin0.best .tkl{background:#D42E2B;color:#fff;text-shadow:none;border-radius:10px;padding:1px 9px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+<script>
+(function(){function bar(t){var b=document.getElementById('errbar');if(!b){b=document.createElement('div');b.id='errbar';b.style.cssText='position:fixed;left:8px;right:8px;top:8px;z-index:99999;background:#FFF1D0;color:#6B4500;border:2px solid #D42E2B;border-radius:12px;padding:10px 12px;font:14px/1.5 sans-serif';(document.body||document.documentElement).appendChild(b)}b.textContent=t}
+window.addEventListener('error',function(e){if(e&&e.message)bar('เกิดข้อผิดพลาดในแอป: '+e.message+(e.lineno?' (บรรทัด '+e.lineno+')':''))});
+window.addEventListener('load',function(){setTimeout(function(){if(!window.__ok)bar('แอปเริ่มทำงานไม่สำเร็จ ถ้าเพิ่งอัปโหลดไฟล์ ให้เช็กว่าไฟล์ index.html บน GitHub ขนาดประมาณ 52 KB (ถ้าเล็กกว่านี้แปลว่าไฟล์ไม่ครบ) แล้วอัปโหลดใหม่ จากนั้นรีเฟรชหน้านี้')},2500)})})();
+</script>
+</head>
+<body>
+<div id="app"><div id="mapview"><div id="gm"></div><div class="top" id="tp"></div><div class="bm" id="bm"><button data-bm="osm" class="on">แผนที่ปกติ</button><button data-bm="sat">ดาวเทียม</button><label id="lbw"><input type="checkbox" id="lbc">ชื่อถนน/สถานที่</label></div><div class="sheet" id="sh"><div class="gh" id="shg" role="button" tabindex="0" aria-label="ลากขึ้นลงเพื่อขยายหรือย่อแผ่นข้อมูล"><i></i></div><div class="sb" id="shb"></div></div><div id="tilemsg"></div><div id="nokey"></div></div><div class="scroll" id="pg" style="display:none"></div></div>
+<nav><button data-t="map">แผนที่</button><button data-t="drv">คนขับ</button><button data-t="reg">สมัครคนขับ</button></nav>
+<div id="show" role="dialog" aria-modal="true"><h1 id="sT"></h1><div class="pr" id="sP"></div><p id="sS" style="margin:6px 0 0"></p><p>จ่ายเงินสดกับคนขับเมื่อถึงที่หมาย</p><button id="sX">ปิด</button></div>
+<script>
+const P=[
+{id:'tp',th:'ประตูท่าแพ',s:'ท่าแพ',la:18.7879,lo:98.9931,a:'end',dx:-14,dy:-6,spot:'หน้าประตูท่าแพ ฝั่งริมถนน'},
+{id:'nm',th:'นิมมานเหมินท์',s:'นิมมาน',la:18.7995,lo:98.968,a:'start',dx:16,dy:-2,spot:'ริมถนนนิมมานเหมินท์ ใกล้ปากซอยหลัก'},
+{id:'ap',th:'สนามบินเชียงใหม่',s:'สนามบิน',la:18.7669,lo:98.9626,a:'start',dx:16,dy:-6,spot:'จุดรับหน้าอาคารผู้โดยสาร'},
+{id:'nb',th:'ไนท์บาซาร์',s:'ไนท์บาซาร์',la:18.786,lo:99.0003,a:'start',dx:16,dy:12,spot:'ริมถนนหน้าตลาดไนท์บาซาร์'},
+{id:'wr',th:'ตลาดวโรรส',s:'วโรรส',la:18.7898,lo:99.0018,a:'start',dx:16,dy:-12,spot:'ริมถนนใกล้ทางเข้าตลาด'},
+{id:'cm',th:'มหาวิทยาลัยเชียงใหม่',s:'มช.',la:18.803,lo:98.953,a:'start',dx:16,dy:-6,spot:'หน้าประตูมหาวิทยาลัย'},
+{id:'my',th:'เมญ่า',s:'MAYA',la:18.8021,lo:98.9672,a:'end',dx:-14,dy:-12,spot:'ริมถนนหน้าห้างเมญ่า'},
+{id:'cf',th:'เซ็นทรัลเฟสติวัล',s:'เซ็นทรัล',la:18.8076,lo:99.0178,a:'end',dx:-14,dy:-6,spot:'หน้าห้าง จุดจอดรถสาธารณะ'},
+{id:'ds',th:'วัดพระธาตุดอยสุเทพ',s:'ดอยสุเทพ',la:18.8049,lo:98.9216,a:'start',dx:16,dy:-6,spot:'ลานรอรถที่ตีนดอย (ขึ้นเขามักใช้อัตราเฉพาะ)'},
+{id:'mr',th:'อ.แม่ริม (ตัวอำเภอ)',s:'แม่ริม',la:18.9143,lo:98.9416,spot:'ริมถนนใกล้ตลาดหรือที่ว่าการอำเภอ'},
+{id:'ss',th:'อ.สันทราย (ตัวอำเภอ)',s:'สันทราย',la:18.857,lo:99.045,spot:'ริมถนนใกล้ตลาดหรือที่ว่าการอำเภอ'},
+{id:'hd',th:'อ.หางดง (ตัวอำเภอ)',s:'หางดง',la:18.688,lo:98.924,spot:'ริมถนนใกล้ตลาดหรือที่ว่าการอำเภอ'},
+{id:'sp',th:'อ.สารภี (ตัวอำเภอ)',s:'สารภี',la:18.72,lo:99.033,spot:'ริมถนนใกล้ตลาดหรือที่ว่าการอำเภอ'},
+{id:'sk',th:'อ.สันกำแพง (ตัวอำเภอ)',s:'สันกำแพง',la:18.748,lo:99.123,spot:'ริมถนนใกล้ตลาดหรือที่ว่าการอำเภอ'}];
+const D=[
+{n:'ลุงสมชาย',s:8,h:'06:00–17:00',p:'12',z:['tp','nb','wr','nm','ss']},
+{n:'ลุงประยูร',s:10,h:'07:00–18:00',p:'47',z:['tp','ap','nb','sp','hd']},
+{n:'พี่นก',s:8,h:'08:00–20:00',p:'09',z:['nm','my','cm','mr']},
+{n:'ลุงแดง',s:8,h:'06:30–16:00',p:'31',z:['cm','nm','tp','mr']},
+{n:'ลุงบุญมา',s:12,h:'07:00–15:00',p:'58',z:['ds','cm','my']},
+{n:'พี่ต้อม',s:8,h:'09:00–21:00',p:'76',z:['cf','wr','nb','ap','sk','ss']},
+{n:'ลุงทอง',s:8,h:'06:00–14:00',p:'23',z:['tp','wr','nb']},
+{n:'พี่เอก',s:10,h:'10:00–22:00',p:'84',z:['nm','my','ap']},
+{n:'ลุงแก้ว',s:8,h:'07:00–16:00',p:'65',z:['cm','my','nm']},
+{n:'พี่ปุ๊',s:8,h:'08:00–19:00',p:'90',z:['tp','nb','ap']}];
+const get=id=>P.find(p=>p.id===id);
+const OFF=[[.0010,-.0008],[.0006,.0012],[-.0009,.0005],[.0004,-.0013],[.0007,.0004],[-.0011,-.0006],[.0013,.0009],[-.0005,.0011],[.0008,-.0010],[-.0012,.0003]];
+const TK=D.map((d,i)=>{const h=get(d.z[i%d.z.length]),la=h.la+OFF[i][0],lo=h.lo+OFF[i][1];
+return{i,hl:h.la,ho:h.lo,la,lo,la0:la,lo0:lo,busy:i===4||i===7,ready:false,mode:'wait',wt:2,pend:false,tries:0,v:0,ms:0,cruise:i===4||i===7?6.5:5+Math.random()*2.5,acc:45,rt:null,cum:[],len:0,s:0,si:0,hd:0,pla:null,plo:null,mt:0}});
+const S={tab:'map',o:null,stops:[],dr:null,flt:null,snap:'half',rad:1000,req:null};
+const $=id=>document.getElementById(id);
+function km(a,b){const R=x=>x*Math.PI/180,dl=R(b.la-a.la),dn=R(b.lo-a.lo);
+const h=Math.sin(dl/2)**2+Math.cos(R(a.la))*Math.cos(R(b.la))*Math.sin(dn/2)**2;return 12742*Math.asin(Math.sqrt(h))*1.3}
+const r5=x=>Math.round(x/5)*5,r10=x=>Math.round(x/10)*10;
+const drvAt=id=>D.filter(d=>d.z.includes(id));
+function near(pt){let b=null,d=1e9;P.forEach(p=>{const k=km(pt,p);if(k<d){d=k;b=p}});return{p:b,d}}
+function mk(la,lo,pl){if(pl)return{la,lo,id:pl.id,name:pl.th,spot:pl.spot,up:pl.id==='ds'};
+const n=near({la,lo});return{la,lo,id:null,name:n.d<1.5?'ใกล้'+n.p.s:'จุดบนแผนที่',spot:null,np:n.p,up:n.p.id==='ds'&&n.d<3}}
+function price(a,b){const k=km(a,b);if(a.up||b.id==='ds')return{k,p:60,c:300};return{k,p:r5(30+Math.max(0,k-3)*5),c:r10(Math.max(100,60+k*18))}}
+function trip(){const pts=[S.o,...S.stops],legs=[];let k=0;
+for(let i=1;i<pts.length;i++){const l=km(pts[i-1],pts[i]);legs.push(l);k+=l}
+const up=pts.some(p=>p.up),n=S.stops.length;
+return{k,legs,n,sh:up?60:r5(30+Math.max(0,k-3)*5),ch:(up?300:r10(Math.max(100,60+k*18)))+20*Math.max(0,n-1)}}
+const TRUCK='<svg viewBox="0 0 56 34" aria-hidden="true"><path d="M3 4.5h32a2 2 0 0 1 2 2V10H3z" fill="#A81F1C" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/><rect x="3" y="10" width="33" height="8" fill="#431110"/><g fill="#FFD9D4"><circle cx="9" cy="13.6" r="2"/><rect x="6.6" y="15.4" width="4.8" height="2.6" rx="1"/><circle cx="23" cy="13.6" r="2"/><rect x="20.6" y="15.4" width="4.8" height="2.6" rx="1"/></g><rect x="4" y="17" width="31" height="1.6" fill="#F4C7C2"/><g fill="#D42E2B"><rect x="2.5" y="9.5" width="2.2" height="9"/><rect x="14" y="9.5" width="2" height="9"/><rect x="29" y="9.5" width="2" height="9"/><rect x="34.5" y="9.5" width="2.2" height="9"/></g><rect x="3" y="18" width="33" height="7.5" rx="1.5" fill="#D42E2B" stroke="#fff" stroke-width="1.4"/><path d="M36 11.5h8.5l6.2 7v7H36z" fill="#D42E2B" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/><path d="M38.2 13.4h5.2l4.2 4.8h-9.4z" fill="#CFE8F7"/><rect x="50.6" y="19.4" width="3.2" height="3" rx="1" fill="#FFE9A3"/><rect x="48.5" y="24.2" width="7.2" height="2.6" rx="1.2" fill="#3a3a3a"/><rect x="3" y="25.4" width="46" height="1.8" fill="#7A1512"/><g stroke="#fff" stroke-width="1.5"><circle cx="14" cy="28" r="5" fill="#222"/><circle cx="43" cy="28" r="5" fill="#222"/></g><circle cx="14" cy="28" r="1.8" fill="#bbb"/><circle cx="43" cy="28" r="1.8" fill="#bbb"/></svg>';
+const hav=(a,b)=>km(a,b)/1.3
+const eta=m=>Math.max(1,Math.round(m/250));
+const fmtM=m=>m<1000?(Math.round(m/10)*10)+' ม.':(m/1000).toFixed(1)+' กม.';
+function ref(){if(S.o)return S.o;if(typeof map!=='undefined'&&map){const c=map.getCenter();return{la:c.lat,lo:c.lng}}return{la:18.79,lo:98.99}}
+function nearTrucks(){const r=ref();return TK.filter(t=>t.ready).map(t=>({t,m:hav(r,t)*1000})).filter(x=>x.m<=S.rad).sort((a,b)=>(a.t.busy-b.t.busy)||(a.m-b.m))}
+function nearPickHtml(A){if(A.id)return'';
+const L=P.map(p=>({p,m:hav(A,p)*1000})).sort((a,b)=>a.m-b.m).slice(0,3);
+return`<h2 style="margin-top:14px">จุดรอที่ใกล้ที่สุด</h2>`+L.map((x,i)=>`<div class="tr ${i?'':'first'}"><span class="n">${i+1}</span><span style="flex:1"><b>${x.p.th}</b><br><small>${fmtM(x.m)}${i?'':' · ใกล้ที่สุด'}</small></span><button class="mini" data-origin="${x.p.id}">ขึ้นที่นี่</button></div>`).join('')}
+let bestId=null,pressing=0;
+function bestTruck(NT){const F=NT.filter(x=>!x.t.busy),c=F[0];
+if(bestId!==null){const cu=F.find(x=>x.t.i===bestId);if(cu&&c&&cu.m-c.m<30)return cu}
+bestId=c?c.t.i:null;return c||null}
+const kmh=t=>Math.round(t.ms*3.6);
+const spdTxt=t=>{const k=kmh(t);return k<1?'จอดรอ':k+' กม./ชม. ('+(k<12?'ช้า':k<25?'ปานกลาง':'เร็ว')+')'};
+const etaTxt=(m,t)=>{const s=m/Math.max(t.ms,5);return s<60?'ราว '+Math.max(5,Math.round(s/5)*5)+' วินาที':'ราว '+Math.round(s/60)+' นาที'};
+const RING='<div class="foot">วงกลมรอบรถ = บริเวณที่รถน่าจะอยู่ (GPS คลาดเคลื่อนได้ โดยเฉพาะใกล้ตึกสูง) รถจำลองวิ่งตามเส้นถนนจริงจาก OpenStreetMap</div>';
+const remRoute=t=>Math.max(0,t.len-t.s);
+function trucksHtml(){const A=S.o,NT=nearTrucks(),r=S.req,best=bestTruck(NT);
+let h=`<h2 style="margin-top:14px">รถแดงใกล้${A?'จุดขึ้นรถ':'กลางแผนที่'} (จำลอง)</h2><div class="fl">${[500,1000,2000].map(v=>`<button class="${S.rad===v?'on':''}" data-rad="${v}">รัศมี ${v<1000?v+' ม.':(v/1000)+' กม.'}</button>`).join('')}</div>`;
+if(r&&A){const t=TK[r.i],d=D[r.i];
+const st=r.state==='sent'?'ส่งคำขอถึง '+d.n+' แล้ว รอตอบรับ…':r.state==='coming'?(t.mode==='pickup'&&t.rt?d.n+' รับแล้ว กำลังมาหาคุณตามถนน<br>ห่างตามถนน '+fmtM(remRoute(t))+' · ความเร็ว '+spdTxt(t)+' · ถึงใน'+etaTxt(remRoute(t),t):d.n+' รับแล้ว กำลังคำนวณเส้นทางถนน…'):d.n+' ถึงถนนที่ใกล้จุดรับของคุณแล้ว ทะเบียน ••'+d.p;
+return h+`<div class="box red"><b>คำขอเรียกรถ</b>${st}<br>จ่ายเงินสดกับคนขับเมื่อถึงที่หมาย<button class="btn o" data-cancel="1">ยกเลิกคำขอ</button></div>`+RING}
+if(!NT.length)return h+(TK.some(t=>!t.ready&&!t.dead)?'<div class="sub">กำลังโหลดเส้นถนนให้รถจำลอง…</div>':'<div class="sub">ไม่มีรถแดงในรัศมีนี้ ลองขยายรัศมี</div>');
+if(best){const d=D[best.t.i];h+=`<div class="box red"><b>รถที่ใกล้ที่สุด เป็นของ</b><span class="bn">${d.n}</span>ทะเบียน ••${d.p} · ${d.s} ที่นั่ง · ว่าง<br>ห่างเส้นตรง ${fmtM(best.m)} · ความเร็ว ${spdTxt(best.t)}<br>ถึงใน${etaTxt(best.m*1.3,best.t)} (ประมาณ) · อยู่ประมาณนี้ ±${Math.round(best.t.acc/5)*5} ม.${A?`<button class="btn" data-call="${best.t.i}">เรียก ${d.n} มารับที่ ${A.name}</button>`:'<div style="margin-top:6px;color:var(--sub)">แตะแผนที่เพื่อเลือกจุดขึ้นรถ แล้วจึงเรียกรถได้</div>'}</div>`}
+else h+='<div class="sub">รถในรัศมีนี้มีผู้โดยสารอยู่ทั้งหมด</div>';
+return h+NT.map((x,i)=>{const d=D[x.t.i],f=best&&x.t===best.t;return`<div class="tr ${f?'first':''}"><span class="n">${i+1}</span><span style="flex:1"><b>${d.n}</b> ทะเบียน ••${d.p}<br><small>${fmtM(x.m)} · ${x.t.busy?'มีผู้โดยสาร':'ว่าง'} · ${spdTxt(x.t)}</small></span>${A&&!x.t.busy&&!f?`<button class="mini" data-call="${x.t.i}">เรียกคันนี้</button>`:''}</div>`}).join('')+RING}
+const upd=f=>{drawTrucks();const x=$('trk');if(x&&(f||!pressing))x.innerHTML=trucksHtml()};
+function callTruck(i){if(!S.o||TK[i].busy||!TK[i].ready)return;S.req={i,state:'sent'};setTimeout(()=>{if(S.req&&S.req.i===i&&S.req.state==='sent'){S.req.state='coming';upd(1)}},2500);upd(1)}
+/* ---------- routing on real roads (OSRM public server, no key) ---------- */
+const OSRM=['https://router.project-osrm.org','https://routing.openstreetmap.de/routed-car'];
+async function osrm(path){for(const base of OSRM){try{const c=new AbortController(),to=setTimeout(()=>c.abort(),8000);const r=await fetch(base+path,{signal:c.signal});clearTimeout(to);if(!r.ok)continue;const j=await r.json();if(j.code==='Ok')return j}catch(e){}}return null}
+const RQ=[];let rbusy=false,lastReq=0;
+function enqueue(fn,front){if(front)RQ.unshift(fn);else RQ.push(fn);pump()}
+async function pump(){if(rbusy)return;rbusy=true;
+while(RQ.length){const fn=RQ.shift(),w=1100-(Date.now()-lastReq);if(w>0)await new Promise(r=>setTimeout(r,w));lastReq=Date.now();try{await fn()}catch(e){}}
+rbusy=false}
+function setRoute(t,coords,mode){t.rt=coords.map(c=>[c[1],c[0]]);t.cum=[0];
+for(let k=1;k<t.rt.length;k++){const a=t.rt[k-1],b=t.rt[k],cl=Math.cos(a[0]*Math.PI/180);t.cum.push(t.cum[k-1]+Math.hypot((b[0]-a[0])*111320,(b[1]-a[1])*111320*cl))}
+t.len=t.cum[t.cum.length-1];t.s=0;t.si=0;t.mode=mode;t.pend=false;placeT(t)}
+function placeT(t){const c=t.cum;let i=t.si;while(i<c.length-2&&c[i+1]<t.s)i++;t.si=i;
+const a=t.rt[i],b=t.rt[i+1]||a,seg=(c[i+1]||c[i])-c[i]||1,f=Math.min(1,Math.max(0,(t.s-c[i])/seg));
+t.la=a[0]+(b[0]-a[0])*f;t.lo=a[1]+(b[1]-a[1])*f;
+if(a!==b)t.hd=Math.atan2((b[0]-a[0])*111320,(b[1]-a[1])*111320*Math.cos(a[0]*Math.PI/180))}
+function snapTask(t){return async()=>{const j=await osrm('/nearest/v1/driving/'+t.lo0+','+t.la0+'?number=1');
+if(j&&j.waypoints&&j.waypoints[0]){const l=j.waypoints[0].location;t.lo=l[0];t.la=l[1];t.pla=t.la;t.plo=t.lo;t.ready=true;t.mode='wait';t.wt=1+Math.random()*5}
+else if(++t.tries<3)enqueue(snapTask(t));else t.dead=true}}
+function roamTask(t){return async()=>{const a=Math.random()*6.283,r=300+Math.random()*500,cl=Math.cos(t.hl*Math.PI/180);
+const dla=t.hl+Math.sin(a)*r/111320,dlo=t.ho+Math.cos(a)*r/(111320*cl);
+const j=await osrm('/route/v1/driving/'+t.lo+','+t.la+';'+dlo+','+dla+'?overview=full&geometries=geojson');
+if(j&&j.routes&&j.routes[0]&&!(S.req&&S.req.i===t.i)){setRoute(t,j.routes[0].geometry.coordinates,'roam')}else{t.pend=false;t.wt=6}}}
+function pickupTask(t){return async()=>{if(!S.req||S.req.i!==t.i||!S.o){t.pend=false;return}
+const j=await osrm('/route/v1/driving/'+t.lo+','+t.la+';'+S.o.lo+','+S.o.la+'?overview=full&geometries=geojson');
+if(j&&j.routes&&j.routes[0]){if(S.req&&S.req.i===t.i)setRoute(t,j.routes[0].geometry.coordinates,'pickup')}
+else if(++t.tries<3)enqueue(pickupTask(t),true);else{t.pend=false;S.req=null;toast('คำนวณเส้นทางถนนไม่สำเร็จ ลองเรียกใหม่อีกครั้ง',6000);upd(1)}}}
+TK.forEach(t=>enqueue(snapTask(t)));
+setTimeout(()=>{if(!TK.some(t=>t.ready))toast('ดึงเส้นถนนไม่ได้ (เน็ตหรือเซิร์ฟเวอร์เส้นทางไม่ตอบ) จึงยังไม่แสดงรถจำลอง',10000)},30000);
+/* ---------- motion: speed shown = speed measured from actual movement ---------- */
+function step(t,dt){if(!t.ready)return;const q=!!(S.req&&S.req.i===t.i&&S.o);let vt=0;
+if(q&&S.req.state==='coming'){
+if(t.mode==='pickup'&&t.rt){const rem=remRoute(t);vt=rem<45?Math.max(1.5,rem/6):8;if(rem<3){S.req.state='arrived';vt=0;t.v=0;t.mode='wait';t.rt=null;t.wt=1e9}}
+else if(!t.pend){t.pend=true;t.tries=0;t.v=Math.min(t.v,2);enqueue(pickupTask(t),true)}}
+else if(q){vt=0}
+else if(t.mode==='pickup'){vt=0;if(t.v<.3){t.mode='wait';t.rt=null;t.wt=2}}
+else if(t.mode==='roam'&&t.rt){const rem=remRoute(t);vt=rem<35?Math.max(1.2,rem/6):t.cruise;if(rem<2){t.mode='wait';t.rt=null;t.wt=4+Math.random()*10;t.v=0;vt=0}}
+else{if(t.wt>1e8)t.wt=2;t.wt-=dt;if(t.wt<=0&&!t.pend){t.pend=true;enqueue(roamTask(t))}}
+const ac=vt>t.v?1.6:3.2;t.v+=Math.sign(vt-t.v)*Math.min(Math.abs(vt-t.v),ac*dt);
+if(t.rt&&t.v>0){t.s=Math.min(t.len,t.s+t.v*dt);placeT(t)}
+t.acc=45+20*Math.sin(performance.now()/4000+t.i*1.7)}
+let lt=0,lc=0;
+function frame(ts){requestAnimationFrame(frame);const dt=Math.min(.1,(ts-lt)/1000);lt=ts;if(!(dt>0))return;
+TK.forEach(t=>{step(t,dt);
+if(t.ready){if(!t.mt||t.pla===null){t.mt=ts;t.pla=t.la;t.plo=t.lo}
+else if(ts-t.mt>300){const dd=hav({la:t.pla,lo:t.plo},t)*1000,inst=dd/((ts-t.mt)/1000);t.ms=t.ms*.4+Math.min(inst,15)*.6;if(t.ms<.15)t.ms=0;t.pla=t.la;t.plo=t.lo;t.mt=ts}}});
+if(!map||S.tab!=='map'||document.hidden)return;
+const lab=ts-lc>500;if(lab)lc=ts;
+for(const k in TM){const o=TM[k],t=TK[k];o.m.setLatLng([t.la,t.lo]);o.c.setLatLng([t.la,t.lo]);
+if(Math.abs(o.c.getRadius()-t.acc)>1)o.c.setRadius(t.acc);
+if(t.ms>.5){const w=Math.cos(t.hd)<0;if(o.w!==w){o.w=w;if(o.el)o.el.classList.toggle('flip',w)}}
+if(lab&&o.lab)o.lab.textContent=(o.isB?'ใกล้สุด · ':'')+D[t.i].n+' · '+(kmh(t)<1?'จอดรอ':kmh(t)+' กม./ชม.')}}
+requestAnimationFrame(frame);
+setInterval(()=>{if(S.tab==='map'&&!document.hidden)upd()},1000);
+document.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('#trk'))pressing=1});
+['pointerup','pointercancel'].forEach(ev=>document.addEventListener(ev,()=>{setTimeout(()=>{pressing=0},500)}));
+function toast(t,ms){const m=$('tilemsg');m.textContent=t;m.style.display='block';setTimeout(()=>{m.style.display='none'},ms||4000)}
+function useMe(){if(!navigator.geolocation){toast('เครื่องนี้ไม่รองรับตำแหน่งปัจจุบัน');return}
+navigator.geolocation.getCurrentPosition(p=>{const pt=mk(p.coords.latitude,p.coords.longitude);pt.name='ตำแหน่งของฉัน';S.o=pt;S.stops=[];if(map)map.setView([pt.la,pt.lo],15);refresh();setSnap('half')},()=>toast('ขอตำแหน่งไม่สำเร็จ ลองเปิดสิทธิ์ตำแหน่งให้เบราว์เซอร์'),{enableHighAccuracy:true,timeout:8000})}
+function sheet(){
+if(!S.o)return`<div class="grab"></div><h2>แตะตรงไหนก็ได้บนแผนที่</h2><div class="note">จ่ายเงินสดกับคนขับเท่านั้น ไม่ต้องจ่ายผ่านแอป ควรเตรียมแบงก์ย่อย</div>
+<ol class="st"><li>แตะจุดที่คุณจะขึ้นรถ จะเป็นหมุดหรือที่ว่างก็ได้</li><li>แตะจุดที่จะลง เพิ่มได้สูงสุด 4 จุด</li><li>ดูราคาแชร์และราคาเหมา แล้วโชว์ให้คนขับดู</li></ol>
+<button class="btn" data-me="1">ใช้ตำแหน่งปัจจุบันของฉัน</button><div id="trk">${trucksHtml()}</div><div class="foot">หมุดเขียว = จุดรอ · ไอคอนรถแดง = รถที่อยู่ในรัศมี<br>ลากเพื่อเลื่อนแผนที่ บีบนิ้วเพื่อซูม ครอบคลุมอำเภอเมืองและอำเภอรอบเมือง<br>แผนที่: ${ATTR}</div>`;
+const A=S.o,t=trip(),n=S.stops.length,np=A.id?get(A.id):A.np,ds=drvAt(np.id);
+const list=P.filter(p=>p.id!==A.id).map(p=>({p,r:price(A,p)})).sort((x,y)=>x.r.k-y.r.k);
+return`<div class="grab"></div><div class="hd"><h2>ขึ้นรถที่: ${A.name}</h2><button class="x" data-reset="1" aria-label="เริ่มใหม่">✕</button></div>
+<div class="box red"><b>${A.spot?'จุดรอรถแดง (ตัวอย่าง)':'ยังไม่มีจุดรอประจำที่นี่'}</b>${A.spot||'ยืนริมถนนที่ปลอดภัย หันหน้าทางรถ แล้วโบกมือ'}</div>
+${nearPickHtml(A)}<div id="trk">${trucksHtml()}</div>
+${S.stops.map((s,i)=>`<div class="sr"><span>จุดลง ${i+1}: ${s.name}<small>${t.legs[i].toFixed(1)} กม. จากจุดก่อนหน้า</small></span><button class="x" data-rm="${i}" aria-label="ลบจุดลง ${i+1}">✕</button></div>`).join('')}
+${n?`<div class="box"><div class="pb">${n===1?`<span>ราคาแชร์<br><span class="big">฿${t.sh}</span> / คน</span>`:''}<span style="text-align:right">ราคาเหมาคัน<br><span class="big">฿${t.ch}</span></span></div><div class="meta" style="color:var(--sub);font-size:13px">รวม ${t.k.toFixed(1)} กม.${n>1?` · ลง ${n} จุด เหมาคันเท่านั้น (จุดที่เพิ่มคิด ฿20 ต่อจุด)`:''}</div><button class="btn" data-show="1">โชว์ให้คนขับดู</button></div>`:''}
+<div class="meta" style="margin:8px 0;color:var(--sub);font-size:13px">${n<4?(n?'แตะแผนที่เพื่อเพิ่มจุดลงอีกที่':'แตะแผนที่เพื่อเลือกจุดลง หรือเลือกจากรายการ'):'ครบ 4 จุดแล้ว แตะแผนที่จะแทนที่จุดสุดท้าย'}</div>
+${n?`<div class="fl">${P.map(p=>`<button data-add="${p.id}">+ ${p.s}</button>`).join('')}</div>`:list.map(({p,r})=>`<button class="rt" data-add="${p.id}"><span>${p.th}<small>${r.k.toFixed(1)} กม. · เหมาคัน ฿${r.c}</small></span><span class="p">฿${r.p}<small> / คน</small></span></button>`).join('')}
+<h2 style="margin-top:14px">คนขับแถวนี้ (ใกล้${np.s})</h2>${ds.length?ds.map(d=>`<span class="dc">${d.n}</span>`).join(''):'<div class="sub">ยังไม่มีคนขับลงทะเบียนพื้นที่นี้</div>'}
+<div class="foot">จุดรอ ราคา และคนขับเป็นข้อมูลตัวอย่าง ราคาเหมา ค่าจุดเพิ่ม และราคาไปอำเภอรอบเมืองต้องตกลงกับคนขับจริงก่อนใช้งาน<br>แผนที่: ${ATTR}</div>`}
+function topHtml(){const dr=S.dr!==null?D[S.dr]:null,r=ref(),L=P.map(p=>({p,m:hav(r,p)})).sort((a,b)=>a.m-b.m);
+return`<div class="pill"><span>รถแดงเชียงใหม่ · <b>ต้นแบบ ข้อมูลจำลอง</b></span><span class="cash">เงินสดเท่านั้น</span></div>
+${dr?`<div class="chips"><button class="on" data-clr="1">แสดงพื้นที่ของ ${dr.n} ✕</button></div>`:`<div class="chips"><button data-me="1">ตำแหน่งฉัน</button>${L.map(({p},i)=>`<button class="${i?'':'near'}" data-id="${p.id}">${i?'':'① ใกล้สุด · '}${p.s}</button>`).join('')}</div>`}`}
+/* ---------- Leaflet + OpenStreetMap (no API key) ---------- */
+const TD='M0 0C-5 -9 -13 -15 -13 -23A13 13 0 1 1 13 -23C13 -15 5 -9 0 0Z';
+let map=null,layer=null,tl=null;
+let ATTR='<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit">© OpenStreetMap contributors</a>';
+let useBase=()=>{};
+function initBase(){
+const O='© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener" style="color:inherit">OpenStreetMap</a> contributors';
+const ES='Esri, Maxar, Earthstar Geographics และ GIS User Community';
+const AT={osm:O,sat:'ภาพดาวเทียม © '+ES};
+const esri=p=>'https://server.arcgisonline.com/ArcGIS/rest/services/'+p+'/MapServer/tile/{z}/{y}/{x}';
+const B={osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}),
+sat:L.tileLayer(esri('World_Imagery'),{maxZoom:19,attribution:'Tiles © Esri'})};
+const lab=L.layerGroup([L.tileLayer(esri('Reference/World_Transportation'),{maxZoom:19,zIndex:5}),L.tileLayer(esri('Reference/World_Boundaries_and_Places'),{maxZoom:19,zIndex:6})]);
+let cur=null;
+const g=$('gm');
+function watch(k){const l=B[k];let ok=0,bad=0;
+l.on('tileload',()=>{ok++;$('tilemsg').style.display='none'});
+l.on('tileerror',()=>{bad++;if(!ok&&bad===6&&cur===k){const m=$('tilemsg');
+m.innerHTML=k==='sat'?'โหลดภาพดาวเทียมไม่ได้ ลองใหม่อีกครั้ง หรือสลับกลับเป็นแผนที่ปกติ':'ยังโหลดภาพแผนที่ไม่ได้ ถ้าเปิดไฟล์ในแอปแชทหรือดับเบิลคลิกตรง ๆ ให้เปิดผ่านลิงก์เว็บ (เช่น Netlify Drop) หรือ Live Server แล้วลองใหม่';m.style.display='block'}})}
+const watched={};
+function use(k){if(cur&&map.hasLayer(B[cur]))map.removeLayer(B[cur]);if(map.hasLayer(lab))map.removeLayer(lab);
+cur=k;B[k].addTo(map);if(!watched[k]){watched[k]=1;watch(k)}
+g.classList.toggle('base-osm',k==='osm');
+document.querySelectorAll('[data-bm]').forEach(b=>b.classList.toggle('on',b.dataset.bm===k));
+const lw=$('lbw');lw.classList.toggle('on',k==='sat');$('lbc').checked=false;
+ATTR=AT[k]+(k==='sat'?' · '+O:'');const x=$('shb');if(x)x.innerHTML=sheet()}
+$('lbc').onchange=e=>{if(e.target.checked)lab.addTo(map);else map.removeLayer(lab)};
+useBase=use;use('osm');setTimeout(()=>map.invalidateSize(),400)}
+const pinSvg=(fill,w,h,txt)=>`<svg width="${w}" height="${h}" viewBox="-14 -37 28 38" style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))"><path d="${TD}" fill="${fill}" stroke="#fff" stroke-width="2"/>${txt?`<text y="-18" text-anchor="middle" font-size="13" font-weight="700" fill="#fff" font-family=""Noto Sans Thai","Sarabun",sans-serif">${txt}</text>`:'<circle cy="-23" r="5" fill="#fff"/>'}</svg>`;
+function initMap(){
+if(typeof L==='undefined'){const n=$('nokey');n.style.display='flex';
+n.innerHTML='<h2>โหลดแผนที่ไม่ได้</h2><p class="sub" style="max-width:340px">ต้องต่ออินเทอร์เน็ตเพื่อโหลด Leaflet และแผนที่ OpenStreetMap</p><button class="btn o" style="max-width:260px" data-t="drv">ดูหน้าคนขับไปก่อน</button>';return}
+map=L.map('gm',{center:[18.8,99.0],zoom:11,minZoom:10,maxZoom:18,maxBounds:[[18.58,98.8],[19.0,99.22]],maxBoundsViscosity:.9,zoomAnimation:true,fadeAnimation:true,markerZoomAnimation:true,inertiaDeceleration:2200,easeLinearity:.25,wheelPxPerZoomLevel:90});
+initBase();
+map.on('click',e=>addPoint(mk(e.latlng.lat,e.latlng.lng)));
+layer=L.layerGroup().addTo(map);tl=L.layerGroup().addTo(map);
+map.on('moveend',()=>{if(!S.o&&S.tab==='map'){drawTrucks();const x=$('trk');if(x)x.innerHTML=trucksHtml();$('tp').innerHTML=topHtml()}});drawMarkers()}
+const TM={};let rc=null,rl=null;
+function drawTrucks(){if(!map||!tl)return;const r=ref(),NT=nearTrucks(),best=bestTruck(NT),ids=new Set(NT.map(x=>x.t.i));
+if(rc){tl.removeLayer(rc);rc=null}
+if(S.o)rc=L.circle([r.la,r.lo],{radius:S.rad,color:'#D42E2B',weight:2,fillColor:'#D42E2B',fillOpacity:.05,interactive:false}).addTo(tl);
+const rq=S.req&&TK[S.req.i],rr=rq&&rq.mode==='pickup'&&rq.rt&&S.req.state==='coming'?rq.rt:null;
+if(rl&&rl._f!==rr){tl.removeLayer(rl);rl=null}
+if(rr&&!rl){rl=L.polyline(rr,{color:'#D42E2B',weight:4,opacity:.75,dashArray:'2 10',lineCap:'round',interactive:false}).addTo(tl);rl._f=rr}
+Object.keys(TM).forEach(k=>{if(!ids.has(+k)){tl.removeLayer(TM[k].m);tl.removeLayer(TM[k].c);delete TM[k]}});
+NT.forEach(({t})=>{let o=TM[t.i];
+if(!o){const m=L.marker([t.la,t.lo],{interactive:false,keyboard:false,zIndexOffset:500,icon:L.divIcon({className:'pin0',html:'<div class="tk"><span class="halo"></span><div class="tkv">'+TRUCK+'</div><span class="tkl"></span></div>',iconSize:[56,34],iconAnchor:[28,17]})}).addTo(tl);
+const c=L.circle([t.la,t.lo],{radius:t.acc,color:'#D42E2B',weight:1.5,dashArray:'4 5',fillColor:'#D42E2B',fillOpacity:.1,interactive:false}).addTo(tl);
+o=TM[t.i]={m,c,el:m.getElement(),lab:null,w:false};o.lab=o.el&&o.el.querySelector('.tkl')}
+if(!o.el)return;
+const isB=!!(best&&best.t===t),q=!!(S.req&&S.req.i===t.i);o.isB=isB;
+o.el.classList.toggle('best',isB||q);o.el.classList.toggle('busy',!!t.busy);
+if(o.lab)o.lab.textContent=(isB?'ใกล้สุด · ':'')+D[t.i].n+' · '+(kmh(t)<1?'จอดรอ':kmh(t)+' กม./ชม.')})}
+function drawMarkers(){if(!map)return;layer.clearLayers();
+const act=S.dr!==null?D[S.dr].z:null,tp=[S.o,...S.stops].filter(Boolean);
+P.forEach(p=>{const m=L.marker([p.la,p.lo],{title:p.th,alt:p.th,opacity:act&&!act.includes(p.id)?.3:1,
+icon:L.divIcon({className:'pin0',html:`<div class="pn">${pinSvg('#0F6E73',26,34)}<span class="mlabel">${p.s}</span></div>`,iconSize:[26,34],iconAnchor:[13,34]})});
+m.on('click',()=>addPoint(mk(p.la,p.lo,p)));m.addTo(layer)});
+if(tp.length>1)L.polyline(tp.map(p=>[p.la,p.lo]),{color:'#D42E2B',weight:4,dashArray:'2 10',lineCap:'round',interactive:false}).addTo(layer);
+tp.forEach((p,i)=>L.marker([p.la,p.lo],{interactive:false,zIndexOffset:1000+i,icon:L.divIcon({className:'pin0',html:pinSvg(i?'#D42E2B':'#1E2422',36,48,i?String(i):'A'),iconSize:[36,48],iconAnchor:[18,48]})}).addTo(layer));drawTrucks()}
+function fitTrip(){const tp=[S.o,...S.stops].filter(Boolean);if(!map||tp.length<2)return;
+map.fitBounds(L.latLngBounds(tp.map(p=>[p.la,p.lo])),{paddingTopLeft:[40,130],paddingBottomRight:[40,Math.round(innerHeight*.5)],maxZoom:15})}
+function drvTab(){const f=S.flt,L=D.filter(d=>!f||d.z.includes(f));
+return`<div><h1>คนขับวันนี้ขับที่ไหนบ้าง</h1><p class="sub">เลือกพื้นที่เพื่อดูว่าลุงคนไหนวิ่งแถวนั้น (ข้อมูลตัวอย่าง)</p>
+<div class="fl"><button class="${!f?'on':''}" data-f="">ทุกพื้นที่</button>${P.map(p=>`<button class="${f===p.id?'on':''}" data-f="${p.id}">${p.s}</button>`).join('')}</div>
+${L.map(d=>{const i=D.indexOf(d);return`<div class="card"><div class="dr"><span class="av">${d.n.replace('ลุง','').replace('พี่','').charAt(0)}</span><div class="m"><div class="nm">${d.n}</div><div class="meta">${d.s} ที่นั่ง · ออกวิ่ง ${d.h}</div></div></div>
+<div style="margin-top:10px">${d.z.map(z=>`<span class="dc ${z===f?'hit':''}">${get(z).s}</span>`).join('')}</div>
+<button class="btn o" data-view="${i}">ดูพื้นที่ของ${d.n}บนแผนที่</button></div>`}).join('')}
+<div class="foot">เวลาและพื้นที่เป็นตัวอย่าง ของจริงให้คนขับอัปเดตเองหลังลงทะเบียน</div></div>`}
+function regTab(){return`<div><h1>วิธีลงทะเบียนคนขับรถแดง</h1><p class="sub">ลงทะเบียนครั้งเดียว ชื่อและพื้นที่ที่วิ่งจะขึ้นบนบอร์ดคนขับ</p>
+<div class="note">ไม่ต้องรับเงินผ่านแอป ผู้โดยสารจ่ายเงินสดกับคุณตามราคากลาง</div>
+<ol class="st"><li><b>เตรียมเอกสาร</b><br><span class="meta">ใบขับขี่ ทะเบียนรถ/เอกสารอนุญาตของรถ และรูปถ่ายหน้าตรง</span></li>
+<li><b>กรอกข้อมูลและเลือกพื้นที่ที่วิ่ง</b><br><span class="meta">ชื่อที่ผู้โดยสารเห็น จำนวนที่นั่ง จุดรอที่คุณประจำ และเวลาออกวิ่ง</span></li>
+<li><b>รับทราบราคากลาง</b><br><span class="meta">ตกลงเก็บตามตารางราคา ไม่ต้องต่อรองหน้างาน</span></li>
+<li><b>รอตรวจสอบเอกสาร</b><br><span class="meta">ทีมงานตรวจเอกสารและทะเบียนรถ</span></li>
+<li><b>โปรไฟล์ขึ้นบอร์ดคนขับ</b><br><span class="meta">ผู้โดยสารเห็นชื่อ พื้นที่ และเวลาวิ่งของคุณ</span></li></ol>
+<a class="btn" href="https://claude.ai/artifact/SYtcz7qZTSykKGuCfwkauJ" target="_blank" rel="noopener">เปิดแบบฟอร์มสมัคร (ต้นแบบ)</a>
+<div class="foot">ต้นแบบนี้ยังไม่บันทึกข้อมูลจริง รายการเอกสารที่ต้องใช้จริงต้องยืนยันกับขนส่งจังหวัดเชียงใหม่ก่อน</div></div>`}
+function render(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===S.tab));
+const m=S.tab==='map';$('mapview').style.display=m?'block':'none';$('pg').style.display=m?'none':'block';
+if(m){$('tp').innerHTML=topHtml();$('shb').innerHTML=sheet();setSnap(S.snap);if(map){map.invalidateSize();drawMarkers()}}
+else{$('pg').innerHTML=S.tab==='drv'?drvTab():regTab();$('pg').scrollTop=0}}
+function refresh(){drawMarkers();const sh=$('shb');sh.innerHTML=sheet();sh.scrollTop=0;sh.classList.remove('in');void sh.offsetWidth;sh.classList.add('in')}
+const SN=['peek','half','full'];
+function snapH(n){const H=$('mapview').clientHeight;return n==='peek'?96:n==='half'?H*.46:H*.86}
+function setSnap(n){S.snap=n;const sh=$('sh');if(sh&&$('mapview').clientHeight)sh.style.height=snapH(n)+'px'}
+(function(){const g=$('shg'),sh=$('sh');let d=null;
+g.addEventListener('pointerdown',e=>{d={y:e.clientY,h:sh.offsetHeight,mv:0};sh.classList.add('drag');g.setPointerCapture(e.pointerId)});
+g.addEventListener('pointermove',e=>{if(!d)return;const H=$('mapview').clientHeight,dy=d.y-e.clientY;d.mv=Math.max(d.mv,Math.abs(dy));sh.style.height=Math.max(72,Math.min(H*.9,d.h+dy))+'px'});
+const end=()=>{if(!d)return;sh.classList.remove('drag');
+if(d.mv<6){setSnap(SN[(SN.indexOf(S.snap)+1)%3])}
+else{const h=sh.offsetHeight;setSnap(SN.reduce((b,n)=>Math.abs(snapH(n)-h)<Math.abs(snapH(b)-h)?n:b,'half'))}d=null};
+g.addEventListener('pointerup',end);g.addEventListener('pointercancel',end);
+g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSnap(SN[(SN.indexOf(S.snap)+1)%3])}});
+addEventListener('resize',()=>setSnap(S.snap))})();
+function addPoint(pt){if(!S.o)S.o=pt;else if(S.stops.length<4)S.stops.push(pt);else S.stops[3]=pt;if(S.snap==='peek')setSnap('half');refresh();fitTrip()}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-id],[data-t],[data-add],[data-rm],[data-reset],[data-show],[data-clr],[data-f],[data-view],[data-bm],[data-me],[data-rad],[data-call],[data-cancel],[data-origin]');if(!t)return;
+const d=t.dataset;
+if(d.t!==undefined){S.tab=d.t;render()}
+else if(d.bm)useBase(d.bm);
+else if(d.me)useMe();
+else if(d.rad){S.rad=+d.rad;upd(1)}
+else if(d.call!==undefined)callTruck(+d.call);
+else if(d.cancel){S.req=null;upd(1)}
+else if(d.origin){const pl=get(d.origin);S.o=mk(pl.la,pl.lo,pl);if(map)map.panTo([pl.la,pl.lo],{duration:.6,easeLinearity:.25});refresh()}
+else if(d.id||d.add){const pl=get(d.id||d.add);addPoint(mk(pl.la,pl.lo,pl))}
+else if(d.rm!==undefined){S.stops.splice(+d.rm,1);refresh();fitTrip()}
+else if(d.reset){S.o=null;S.stops=[];S.req=null;refresh()}
+else if(d.show){const tr=trip(),n=S.stops.length;
+$('sT').textContent=n===1?'ไป'+S.stops[0].name+' ราคา':'เหมาคัน ลง '+n+' จุด ราคา';
+$('sP').textContent='฿'+(n===1?tr.sh:tr.ch);
+$('sS').textContent=n===1?'ต่อคน หรือเหมาคัน ฿'+tr.ch:S.stops.map((s,i)=>(i+1)+'. '+s.name).join(' → ');
+$('show').classList.add('on')}
+else if(d.clr){S.dr=null;render()}
+else if(d.f!==undefined){S.flt=d.f||null;render()}
+else if(d.view!==undefined){S.dr=+d.view;S.tab='map';render()}});
+$('sX').onclick=()=>$('show').classList.remove('on');
+render();window.__ok=1;initMap();
+</script>
+</body>
+</html>
